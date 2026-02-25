@@ -104,8 +104,8 @@ function Install-WithWinget {
 
     # 2. Deeper check: is the package registered in winget even if command isn't on PATH?
     #    This prevents winget from re-running the installer and popping GUI dialogs.
-    $wingetCheck = winget list --id $WingetId --accept-source-agreements 2>$null
-    if ($wingetCheck -match [regex]::Escape($WingetId)) {
+    winget list --id $WingetId --exact --accept-source-agreements 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) {
         Write-Skip "$DisplayName already installed (detected by winget)"
         return $true
     }
