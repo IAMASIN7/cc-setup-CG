@@ -93,11 +93,20 @@ function Install-WithWinget {
         [string]$TestCommand,
         [string]$WingetId
     )
+    # 1. Quick check: is the command already on PATH?
     if (Test-CommandExists $TestCommand) {
         $ver = $null
         try { $ver = (& $TestCommand --version 2>$null) } catch {}
         if (-not $ver) { try { $ver = (& $TestCommand -v 2>$null) } catch {} }
         Write-Skip "$DisplayName already installed ($ver)"
+        return $true
+    }
+
+    # 2. Deeper check: is the package registered in winget even if command isn't on PATH?
+    #    This prevents winget from re-running the installer and popping GUI dialogs.
+    $wingetCheck = winget list --id $WingetId --accept-source-agreements 2>$null
+    if ($wingetCheck -match [regex]::Escape($WingetId)) {
+        Write-Skip "$DisplayName already installed (detected by winget)"
         return $true
     }
 
