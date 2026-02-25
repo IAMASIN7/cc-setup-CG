@@ -4,13 +4,15 @@ One-command installer for Claude Code CLI and all its dependencies on Windows 10
 
 ## Quick Start (Recommended)
 
-Open **PowerShell** and paste:
+1. Open **PowerShell as Administrator** (right-click > "Run as administrator")
+2. Paste the following command and press Enter:
 
 ```powershell
 irm https://raw.githubusercontent.com/IAMASIN7/cc-setup-CG/main/Install.ps1 | iex
 ```
 
-That's it. One UAC prompt, then everything installs automatically and verifies itself when done.
+3. Wait for the installer to finish - everything installs automatically and verifies itself when done
+4. Type **`cc`** in the new terminal that opens to launch Claude Code
 
 ## What Gets Installed
 
