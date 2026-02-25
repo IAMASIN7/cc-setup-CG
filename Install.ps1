@@ -215,35 +215,34 @@ if (Test-CommandExists "pwsh") {
 Write-Step "3" $totalSteps "Checking Git..."
 Install-WithWinget -DisplayName "Git" -TestCommand "git" -WingetId "Git.Git" | Out-Null
 
-# Claude Code requires bash.exe on PATH. Git installs it but sometimes
-# its usr\bin directory isn't on PATH (especially user-scoped installs).
+# Claude Code requires CLAUDE_CODE_GIT_BASH_PATH pointing to bash.exe.
+# Find Git's bash.exe and set the env var (also ensure usr\bin is on PATH).
 Refresh-Path
-if (-not (Test-CommandExists "bash")) {
-    $gitBashPaths = @(
-        "$env:ProgramFiles\Git\usr\bin",
-        "$env:ProgramFiles\Git\bin",
-        "${env:ProgramFiles(x86)}\Git\usr\bin",
-        "$env:LOCALAPPDATA\Programs\Git\usr\bin",
-        "$env:LOCALAPPDATA\Programs\Git\bin"
-    )
-    $found = $false
-    foreach ($p in $gitBashPaths) {
-        if (Test-Path "$p\bash.exe") {
-            $currentUserPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
-            if ($currentUserPath -notlike "*$p*") {
-                [System.Environment]::SetEnvironmentVariable("PATH", "$currentUserPath;$p", "User")
-            }
-            if ($env:PATH -notlike "*$p*") { $env:PATH = "$env:PATH;$p" }
-            Write-Ok "Added $p to PATH (Claude Code requires bash)"
-            $found = $true
-            break
-        }
+$gitBashLocations = @(
+    "$env:ProgramFiles\Git\bin\bash.exe",
+    "${env:ProgramFiles(x86)}\Git\bin\bash.exe",
+    "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe",
+    "$env:ProgramFiles\Git\usr\bin\bash.exe",
+    "$env:LOCALAPPDATA\Programs\Git\usr\bin\bash.exe"
+)
+$bashExe = $null
+foreach ($candidate in $gitBashLocations) {
+    if (Test-Path $candidate) { $bashExe = $candidate; break }
+}
+if ($bashExe) {
+    [System.Environment]::SetEnvironmentVariable("CLAUDE_CODE_GIT_BASH_PATH", $bashExe, "User")
+    $env:CLAUDE_CODE_GIT_BASH_PATH = $bashExe
+    Write-Ok "CLAUDE_CODE_GIT_BASH_PATH = $bashExe"
+
+    # Also ensure the directory is on PATH for other tools
+    $bashDir = Split-Path $bashExe -Parent
+    $currentUserPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
+    if ($currentUserPath -notlike "*$bashDir*") {
+        [System.Environment]::SetEnvironmentVariable("PATH", "$currentUserPath;$bashDir", "User")
     }
-    if (-not $found) {
-        Write-Warn "bash.exe not found - Claude Code needs it. Install Git with 'Add to PATH' option."
-    }
+    if ($env:PATH -notlike "*$bashDir*") { $env:PATH = "$env:PATH;$bashDir" }
 } else {
-    Write-Skip "bash.exe already on PATH"
+    Write-Warn "bash.exe not found - Claude Code needs it. Install Git with 'Add to PATH' option."
 }
 
 # ------------------------------------------------------------------
