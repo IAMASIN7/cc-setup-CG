@@ -124,7 +124,7 @@ function Install-WithWinget {
 
 Write-Banner
 
-$totalSteps = 9
+$totalSteps = 13
 
 # ------------------------------------------------------------------
 #  Step 1 - Pre-flight checks (admin, internet, winget)
@@ -242,9 +242,33 @@ Write-Step "5" $totalSteps "Checking Python..."
 Install-WithWinget -DisplayName "Python" -TestCommand "python" -WingetId "Python.Python.3.13" | Out-Null
 
 # ------------------------------------------------------------------
-#  Step 6 - Ensure ~/.local/bin is on PATH (before installing Claude)
+#  Step 6 - Install GitHub CLI
 # ------------------------------------------------------------------
-Write-Step "6" $totalSteps "Preparing PATH for Claude CLI..."
+Write-Step "6" $totalSteps "Checking GitHub CLI..."
+Install-WithWinget -DisplayName "GitHub CLI" -TestCommand "gh" -WingetId "GitHub.cli" | Out-Null
+
+# ------------------------------------------------------------------
+#  Step 7 - Install uv (fast Python package manager)
+# ------------------------------------------------------------------
+Write-Step "7" $totalSteps "Checking uv (Python package manager)..."
+Install-WithWinget -DisplayName "uv" -TestCommand "uv" -WingetId "astral-sh.uv" | Out-Null
+
+# ------------------------------------------------------------------
+#  Step 8 - Install Windows Terminal
+# ------------------------------------------------------------------
+Write-Step "8" $totalSteps "Checking Windows Terminal..."
+Install-WithWinget -DisplayName "Windows Terminal" -TestCommand "wt" -WingetId "Microsoft.WindowsTerminal" | Out-Null
+
+# ------------------------------------------------------------------
+#  Step 9 - Install VS Code
+# ------------------------------------------------------------------
+Write-Step "9" $totalSteps "Checking Visual Studio Code..."
+Install-WithWinget -DisplayName "VS Code" -TestCommand "code" -WingetId "Microsoft.VisualStudioCode" | Out-Null
+
+# ------------------------------------------------------------------
+#  Step 10 - Ensure ~/.local/bin is on PATH (before installing Claude)
+# ------------------------------------------------------------------
+Write-Step "10" $totalSteps "Preparing PATH for Claude CLI..."
 
 $claudeBin = "$env:USERPROFILE\.local\bin"
 $currentUserPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
@@ -260,9 +284,9 @@ if ($env:PATH -notlike "*$claudeBin*") {
 }
 
 # ------------------------------------------------------------------
-#  Step 7 - Install Claude Code CLI (official standalone installer)
+#  Step 11 - Install Claude Code CLI (official standalone installer)
 # ------------------------------------------------------------------
-Write-Step "7" $totalSteps "Installing Claude Code CLI (official installer)..."
+Write-Step "11" $totalSteps "Installing Claude Code CLI (official installer)..."
 
 Refresh-Path
 
@@ -296,9 +320,9 @@ if (Test-CommandExists "claude") {
 }
 
 # ------------------------------------------------------------------
-#  Step 8 - Environment variables + .claude.json config
+#  Step 12 - Environment variables + .claude.json config
 # ------------------------------------------------------------------
-Write-Step "8" $totalSteps "Setting environment variables + config file..."
+Write-Step "12" $totalSteps "Setting environment variables + config file..."
 
 # Environment variable
 [System.Environment]::SetEnvironmentVariable("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "1", "User")
@@ -328,9 +352,9 @@ $claudeConfig | Set-Content -Path $configPath -Encoding UTF8
 Write-Ok "$configPath written"
 
 # ------------------------------------------------------------------
-#  Step 9 - PowerShell profile shortcuts (cc / ccb)
+#  Step 13 - PowerShell profile shortcuts (cc / ccb)
 # ------------------------------------------------------------------
-Write-Step "9" $totalSteps "Setting up 'cc' and 'ccb' shortcuts..."
+Write-Step "13" $totalSteps "Setting up 'cc' and 'ccb' shortcuts..."
 
 # Ensure the execution policy allows profile scripts to load in normal sessions.
 # Without this, profiles are silently blocked and cc/ccb won't be recognised.
@@ -412,6 +436,9 @@ $checks = @(
     @{ Name = "Node.js";      Cmd = "node" },
     @{ Name = "npm";          Cmd = "npm" },
     @{ Name = "Python";       Cmd = "python" },
+    @{ Name = "GitHub CLI";   Cmd = "gh" },
+    @{ Name = "uv";           Cmd = "uv" },
+    @{ Name = "VS Code";      Cmd = "code" },
     @{ Name = "Claude CLI";   Cmd = "claude" }
 )
 foreach ($check in $checks) {

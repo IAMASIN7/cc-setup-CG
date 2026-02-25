@@ -14,13 +14,17 @@ That's it. One UAC prompt, then everything installs automatically and verifies i
 
 ## What Gets Installed
 
-| Tool           | Purpose                           |
-|----------------|-----------------------------------|
-| PowerShell 7   | Modern shell                      |
-| Git            | Version control                   |
-| Node.js (LTS)  | JavaScript runtime               |
-| Python 3.13    | Python runtime                    |
-| Claude Code CLI| AI coding assistant               |
+| Tool              | Purpose                           |
+|-------------------|-----------------------------------|
+| PowerShell 7      | Modern shell                      |
+| Git               | Version control                   |
+| Node.js (LTS)     | JavaScript runtime                |
+| Python 3.13       | Python runtime                    |
+| GitHub CLI (`gh`) | GitHub operations from terminal   |
+| uv                | Fast Python package manager       |
+| Windows Terminal   | Modern terminal with tabs         |
+| VS Code           | Code editor with Claude extension |
+| Claude Code CLI   | AI coding assistant               |
 
 ## What Gets Configured
 

@@ -18,6 +18,9 @@ $tools = @(
     @{ Name = "Node.js";      Cmd = "node";    Flag = "--version" },
     @{ Name = "npm";          Cmd = "npm";     Flag = "--version" },
     @{ Name = "Python";       Cmd = "python";  Flag = "--version" },
+    @{ Name = "GitHub CLI";   Cmd = "gh";      Flag = "--version" },
+    @{ Name = "uv";           Cmd = "uv";      Flag = "--version" },
+    @{ Name = "VS Code";      Cmd = "code";    Flag = "--version" },
     @{ Name = "Claude CLI";   Cmd = "claude";  Flag = "--version" }
 )
 
