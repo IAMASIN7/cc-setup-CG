@@ -266,7 +266,13 @@ Install-WithWinget -DisplayName "uv" -TestCommand "uv" -WingetId "astral-sh.uv" 
 #  Step 8 - Install Windows Terminal
 # ------------------------------------------------------------------
 Write-Step "8" $totalSteps "Checking Windows Terminal..."
-Install-WithWinget -DisplayName "Windows Terminal" -TestCommand "wt" -WingetId "Microsoft.WindowsTerminal" | Out-Null
+# Check for Store-installed version first (MSIX won't show up in winget list)
+$wtStoreApp = Get-AppxPackage -Name "Microsoft.WindowsTerminal" -ErrorAction SilentlyContinue
+if ($wtStoreApp) {
+    Write-Skip "Windows Terminal already installed (Microsoft Store v$($wtStoreApp.Version))"
+} else {
+    Install-WithWinget -DisplayName "Windows Terminal" -TestCommand "wt" -WingetId "Microsoft.WindowsTerminal" | Out-Null
+}
 
 # ------------------------------------------------------------------
 #  Step 9 - Install VS Code
