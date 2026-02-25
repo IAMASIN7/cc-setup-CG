@@ -7,12 +7,10 @@ One-command installer for Claude Code CLI and all its dependencies on Windows 10
 Open **PowerShell** and paste:
 
 ```powershell
-irm https://raw.githubusercontent.com/<ORG>/<REPO>/main/Install-Remote.ps1 | iex
+irm https://raw.githubusercontent.com/IAMASIN7/cc-setup-CG/main/Install.ps1 | iex
 ```
 
-> Update the URL above once you've pushed this repo to GitHub (or your internal Git server).
-
-That's it. One UAC prompt, then everything installs automatically and a fresh terminal opens when it's done.
+That's it. One UAC prompt, then everything installs automatically and verifies itself when done.
 
 ## What Gets Installed
 
