@@ -128,7 +128,7 @@ function Install-WithWinget {
 
     Write-Info "Installing $DisplayName via winget..."
     try {
-        winget install --id $WingetId --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Null
+        winget install --id $WingetId --accept-source-agreements --accept-package-agreements --silent --disable-interactivity 2>&1 | Out-Null
         Refresh-Path
         if (Test-CommandExists $TestCommand) {
             Write-Ok "$DisplayName installed"
@@ -209,7 +209,7 @@ if (Test-CommandExists "pwsh") {
     Write-Skip "PowerShell 7 already installed ($pwshVer)"
 } else {
     Write-Info "Installing PowerShell 7..."
-    winget install --id Microsoft.PowerShell --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Null
+    winget install --id Microsoft.PowerShell --accept-source-agreements --accept-package-agreements --silent --disable-interactivity 2>&1 | Out-Null
     Refresh-Path
     if (Test-CommandExists "pwsh") {
         Write-Ok "PowerShell 7 installed"
