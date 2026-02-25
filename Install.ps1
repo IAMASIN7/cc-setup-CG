@@ -215,6 +215,37 @@ if (Test-CommandExists "pwsh") {
 Write-Step "3" $totalSteps "Checking Git..."
 Install-WithWinget -DisplayName "Git" -TestCommand "git" -WingetId "Git.Git" | Out-Null
 
+# Claude Code requires bash.exe on PATH. Git installs it but sometimes
+# its usr\bin directory isn't on PATH (especially user-scoped installs).
+Refresh-Path
+if (-not (Test-CommandExists "bash")) {
+    $gitBashPaths = @(
+        "$env:ProgramFiles\Git\usr\bin",
+        "$env:ProgramFiles\Git\bin",
+        "${env:ProgramFiles(x86)}\Git\usr\bin",
+        "$env:LOCALAPPDATA\Programs\Git\usr\bin",
+        "$env:LOCALAPPDATA\Programs\Git\bin"
+    )
+    $found = $false
+    foreach ($p in $gitBashPaths) {
+        if (Test-Path "$p\bash.exe") {
+            $currentUserPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
+            if ($currentUserPath -notlike "*$p*") {
+                [System.Environment]::SetEnvironmentVariable("PATH", "$currentUserPath;$p", "User")
+            }
+            if ($env:PATH -notlike "*$p*") { $env:PATH = "$env:PATH;$p" }
+            Write-Ok "Added $p to PATH (Claude Code requires bash)"
+            $found = $true
+            break
+        }
+    }
+    if (-not $found) {
+        Write-Warn "bash.exe not found - Claude Code needs it. Install Git with 'Add to PATH' option."
+    }
+} else {
+    Write-Skip "bash.exe already on PATH"
+}
+
 # ------------------------------------------------------------------
 #  Step 4 - Install Node.js (LTS) + npm
 # ------------------------------------------------------------------
@@ -332,8 +363,10 @@ if (Test-CommandExists "pwsh") {
     } catch {}
 }
 
-$ps7ProfileFallback = Join-Path $env:USERPROFILE "Documents\PowerShell\Microsoft.PowerShell_profile.ps1"
-$ps51Profile        = Join-Path $env:USERPROFILE "Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
+# Use the real Documents folder (respects OneDrive folder redirection)
+$realDocs = [Environment]::GetFolderPath('MyDocuments')
+$ps7ProfileFallback = Join-Path $realDocs "PowerShell\Microsoft.PowerShell_profile.ps1"
+$ps51Profile        = Join-Path $realDocs "WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
 if ($profilesToUpdate -notcontains $ps7ProfileFallback) { $profilesToUpdate += $ps7ProfileFallback }
 if ($profilesToUpdate -notcontains $ps51Profile)        { $profilesToUpdate += $ps51Profile }
 $profilesToUpdate = $profilesToUpdate | Sort-Object -Unique
