@@ -412,7 +412,7 @@ if (-not (Test-Path $claudeBin)) {
     New-Item -ItemType Directory -Path $claudeBin -Force | Out-Null
 }
 
-$ccShim  = "@echo off`r`nclaude %*`r`n"
+$ccShim  = "@echo off`r`nclaude --permission-mode auto %*`r`n"
 $ccbShim = "@echo off`r`nclaude --dangerously-skip-permissions %*`r`n"
 Set-Content -Path (Join-Path $claudeBin "cc.cmd")  -Value $ccShim  -Encoding ASCII -NoNewline
 Set-Content -Path (Join-Path $claudeBin "ccb.cmd") -Value $ccbShim -Encoding ASCII -NoNewline
@@ -455,7 +455,7 @@ $claudeFunction = @"
 
 # --- Claude CLI Shortcuts ------------------------------------
 function cc {
-    & claude @args
+    & claude --permission-mode auto @args
 }
 function ccb {
     & claude --dangerously-skip-permissions @args
