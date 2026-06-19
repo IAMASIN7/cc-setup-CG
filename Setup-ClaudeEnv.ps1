@@ -366,13 +366,61 @@ $configPath = "$env:USERPROFILE\.claude.json"
 $claudeConfig | Set-Content -Path $configPath -Encoding UTF8
 Write-Ok "$configPath written"
 
+# --- ~/.claude/settings.json : automode + always-on deep reasoning ---
+# These live in settings.json (not .claude.json). We MERGE into any
+# existing file so we don't clobber the user's other settings.
+#   permissions.defaultMode = "auto"  -> Claude starts in auto mode
+#                                        (auto-approves with background
+#                                        safety checks) on every launch.
+#   effortLevel             = "xhigh"  -> highest persistent reasoning
+#                                        level. This is the closest thing
+#                                        to "ultracode" that can be made a
+#                                        permanent default - full ultracode
+#                                        (xhigh + auto-workflows) is
+#                                        session-only via '/effort ultracode'.
+$settingsDir  = "$env:USERPROFILE\.claude"
+if (-not (Test-Path $settingsDir)) { New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null }
+$settingsPath = Join-Path $settingsDir "settings.json"
+
+$settings = $null
+if (Test-Path $settingsPath) {
+    try { $settings = Get-Content $settingsPath -Raw -ErrorAction Stop | ConvertFrom-Json } catch { $settings = $null }
+}
+if (-not $settings) { $settings = [PSCustomObject]@{} }
+
+$settings | Add-Member -NotePropertyName effortLevel -NotePropertyValue "xhigh" -Force
+if (-not $settings.permissions) {
+    $settings | Add-Member -NotePropertyName permissions -NotePropertyValue ([PSCustomObject]@{}) -Force
+}
+$settings.permissions | Add-Member -NotePropertyName defaultMode -NotePropertyValue "auto" -Force
+
+$settings | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsPath -Encoding UTF8
+Write-Ok "$settingsPath written (defaultMode=auto, effortLevel=xhigh)"
+
 # ------------------------------------------------------------------
-#  Step 13 - PowerShell profile shortcuts (cc / ccb)
+#  Step 13 - 'cc' / 'ccb' shortcuts (work in EVERY shell)
 # ------------------------------------------------------------------
 Write-Step "13" $totalSteps "Setting up 'cc' and 'ccb' shortcuts..."
 
-# Ensure the execution policy allows profile scripts to load in normal sessions.
-# Without this, profiles are silently blocked and cc/ccb won't be recognised.
+# --- Primary mechanism: .cmd shims on PATH -------------------------
+# A function in the PowerShell profile only works in PowerShell, only
+# after the profile loads (execution policy / fresh terminal), and not
+# at all in cmd.exe, Git Bash, or the VS Code terminal. Dropping real
+# command shims into ~/.local/bin (already on PATH) makes 'cc' work in
+# ANY shell, in ANY folder, the moment a new terminal is opened.
+if (-not (Test-Path $claudeBin)) {
+    New-Item -ItemType Directory -Path $claudeBin -Force | Out-Null
+}
+
+$ccShim  = "@echo off`r`nclaude %*`r`n"
+$ccbShim = "@echo off`r`nclaude --dangerously-skip-permissions %*`r`n"
+Set-Content -Path (Join-Path $claudeBin "cc.cmd")  -Value $ccShim  -Encoding ASCII -NoNewline
+Set-Content -Path (Join-Path $claudeBin "ccb.cmd") -Value $ccbShim -Encoding ASCII -NoNewline
+Write-Ok "Created cc.cmd / ccb.cmd in $claudeBin (works in any shell)"
+
+# --- Secondary: PowerShell profile functions ----------------------
+# Ensure the execution policy allows profile scripts to load so the
+# nicer in-session functions are available too.
 $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
 if ($currentPolicy -eq "Restricted" -or $currentPolicy -eq "Undefined") {
     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force

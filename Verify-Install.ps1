@@ -56,6 +56,33 @@ if (Test-Path "$env:USERPROFILE\.claude.json") {
     $allPassed = $false
 }
 
+# Check cc/ccb command shims (the version that works in every shell)
+$ccShimPath = "$env:USERPROFILE\.local\bin\cc.cmd"
+if (Test-Path $ccShimPath) {
+    Write-Host "  [PASS]  cc / ccb command shims installed (work in any shell)" -ForegroundColor Green
+} else {
+    Write-Host "  [FAIL]  cc.cmd shim not found at $ccShimPath" -ForegroundColor Red
+    $allPassed = $false
+}
+
+# Check settings.json (auto mode + xhigh reasoning)
+$settingsPath = "$env:USERPROFILE\.claude\settings.json"
+if (Test-Path $settingsPath) {
+    $autoOn = $false
+    try {
+        $s = Get-Content $settingsPath -Raw | ConvertFrom-Json
+        if ($s.permissions.defaultMode -eq "auto") { $autoOn = $true }
+    } catch {}
+    if ($autoOn) {
+        Write-Host "  [PASS]  Auto mode is ON by default (settings.json)" -ForegroundColor Green
+    } else {
+        Write-Host "  [WARN]  settings.json exists but auto mode not set" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  [FAIL]  ~/.claude/settings.json not found" -ForegroundColor Red
+    $allPassed = $false
+}
+
 Write-Host ""
 if ($allPassed) {
     Write-Host "  ====================================================" -ForegroundColor Green

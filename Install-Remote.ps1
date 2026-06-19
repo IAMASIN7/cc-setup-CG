@@ -12,8 +12,7 @@ Write-Host "  Claude Code CLI - Team Setup" -ForegroundColor Cyan
 Write-Host "  Downloading installer..." -ForegroundColor Gray
 Write-Host ""
 
-# ---- UPDATE THIS to your actual repo raw URL ----
-$repoBase = "https://raw.githubusercontent.com/<ORG>/<REPO>/main"
+$repoBase = "https://raw.githubusercontent.com/IAMASIN7/cc-setup-CG/main"
 
 $tempDir = Join-Path $env:TEMP "claude-setup-$(Get-Random)"
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null

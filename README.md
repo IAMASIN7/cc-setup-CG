@@ -30,10 +30,30 @@ irm https://raw.githubusercontent.com/IAMASIN7/cc-setup-CG/main/Install.ps1 | ie
 
 ## What Gets Configured
 
-- **`cc`** shortcut - launches Claude Code
-- **`ccb`** shortcut - launches Claude Code in bypass mode (auto-approves tool use)
+- **`cc`** shortcut - launches Claude Code in the current folder, from **any shell** (PowerShell, cmd, Git Bash, the VS Code terminal). Installed as a real command (`cc.cmd`) on your PATH, plus a PowerShell profile function, so it works no matter where you type it.
+- **`ccb`** shortcut - launches Claude Code in bypass mode (auto-approves all tool use)
+- **Auto mode ON by default** - `permissions.defaultMode` is set to `auto` in `~/.claude/settings.json`, so Claude starts in auto mode (auto-approves with background safety checks) on every launch
+- **xhigh reasoning by default** - `effortLevel` is set to `xhigh` in `~/.claude/settings.json` (the deepest reasoning level that can be made permanent - see [Ultracode](#ultracode) below)
 - `~/.claude.json` - pre-configured with team plugins and settings
 - Execution policy set to `RemoteSigned` so PowerShell profiles load correctly
+
+## Ultracode
+
+You asked for **ultracode** on by default. Important caveat: full ultracode (deepest reasoning **plus** auto-running multi-agent workflows) **cannot** be set as a permanent default - there is no settings key, environment variable, or launch flag that accepts `ultracode`. It is session-scoped only.
+
+This setup gets you as close as possible automatically:
+
+- The **reasoning half** of ultracode is made permanent via `effortLevel: "xhigh"` (the highest persistent level).
+
+To turn on **full ultracode** for an entire session, type this once inside Claude Code:
+
+```text
+/effort ultracode
+```
+
+It stays on for the rest of that session (it resets when you start a new one). Alternatively, prefix a single prompt with the word `ultracode` to get a workflow for just that one task.
+
+> Tip: `xhigh` / ultracode use a lot more tokens and run slower. If you ever want lighter sessions, run `/effort high` (or `medium`), or edit `effortLevel` in `~/.claude/settings.json`.
 
 ## How It Works
 
@@ -68,7 +88,16 @@ Open PowerShell and run:
 Install **App Installer** from the Microsoft Store, then try again.
 
 ### "cc is not recognized"
-Close all terminal windows and open a new one. The shortcuts need a fresh terminal to load the PowerShell profile.
+Close **all** terminal windows and open a brand-new one - a fresh terminal is needed to pick up the updated PATH. `cc` is installed as `cc.cmd` in `%USERPROFILE%\.local\bin` (which the installer adds to your PATH), so it works in PowerShell, cmd, and the VS Code terminal.
+
+If it still isn't found, confirm the shim and PATH:
+
+```powershell
+Test-Path "$env:USERPROFILE\.local\bin\cc.cmd"    # should print True
+$env:Path -split ';' | Select-String '.local\\bin' # should list the folder
+```
+
+If the shim exists but isn't found, re-run the installer (it's safe to run again) or sign out and back in to refresh PATH system-wide.
 
 ### Claude CLI not found after install
 Run manually:
