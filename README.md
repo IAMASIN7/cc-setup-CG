@@ -24,6 +24,7 @@ irm https://raw.githubusercontent.com/IAMASIN7/cc-setup-CG/main/Install.ps1 | ie
 | Python 3.13       | Python runtime                    |
 | GitHub CLI (`gh`) | GitHub operations from terminal   |
 | uv                | Fast Python package manager       |
+| jq                | Command-line JSON processor       |
 | Windows Terminal   | Modern terminal with tabs         |
 | VS Code           | Code editor with Claude extension |
 | Claude Code CLI   | AI coding assistant               |
@@ -34,8 +35,52 @@ irm https://raw.githubusercontent.com/IAMASIN7/cc-setup-CG/main/Install.ps1 | ie
 - **`ccb`** shortcut - launches Claude Code in bypass mode (auto-approves all tool use)
 - **Auto mode ON by default** - `permissions.defaultMode` is set to `auto` in `~/.claude/settings.json`, so Claude starts in auto mode (auto-approves with background safety checks) on every launch
 - **xhigh reasoning by default** - `effortLevel` is set to `xhigh` in `~/.claude/settings.json` (the deepest reasoning level that can be made permanent - see [Ultracode](#ultracode) below)
+- **Custom status line** - a stats bar at the bottom of Claude Code (see [Status line](#status-line) below)
 - `~/.claude.json` - pre-configured with team plugins and settings
 - Execution policy set to `RemoteSigned` so PowerShell profiles load correctly
+
+## Status line
+
+The installer drops `statusline.mjs` into `~/.claude/` and points `settings.json` at it, giving you a stats bar along the bottom of Claude Code:
+
+```
+Opus 4.8 │ xhigh │ my-project │ main* │ ███░░░░░░░ 34% (340k/1M) │ +40/-8 │ 5h 22% · 7d 61%
+```
+
+Left to right: the model, reasoning effort, current folder, git branch, context-window usage, lines changed this session, and your 5-hour / 7-day usage limits.
+
+It's colored to be read at a glance:
+
+- **Git branch** is green when clean, yellow when you have uncommitted changes (the `*`). Ahead/behind counts show as `↑2 ↓1`.
+- **Context bar** turns yellow past 60% and red past 85%, so you get a heads-up before a compaction.
+- **Usage limits** use the same scale, and append the reset time once a limit passes 70% (`7d 88% → Tue 3:00 PM`).
+
+### Customizing it
+
+Every segment has an on/off switch in the `CONFIG` block at the top of `~/.claude/statusline.mjs`:
+
+```js
+const CONFIG = {
+  multiline: false,        // true = git on line 1, context/usage on line 2
+  barWidth: 10,            // width of the context bar
+  showEffort: true,
+  showGit: true,
+  showContext: true,
+  showTokens: true,        // the "(340k/1M)" part
+  showLines: true,
+  showRateLimits: true,    // 5h and 7d usage
+  rateLimitThreshold: 0,   // hide a limit below this % (0 = always show)
+  rateLimitResetAt: 70,    // append reset time once a limit hits this %
+  showSessionName: true,
+  showCost: false,         // session cost in USD (only meaningful on API billing)
+};
+```
+
+Cost is off by default, since it only reflects API pricing and means nothing on a Pro/Max subscription. Flip `showCost` to `true` if you're on API billing.
+
+Re-running the installer **won't** overwrite an existing `~/.claude/statusline.mjs`, so your edits are safe. To pull down a fresh copy, delete the file and re-run.
+
+It's a Node script rather than the bash + `jq` approach in Anthropic's docs: Node is already a dependency here, so the status line has no extra requirements and works whether Claude Code routes the command through Git Bash or PowerShell.
 
 ## Ultracode
 
@@ -104,6 +149,16 @@ Run manually:
 ```powershell
 irm https://claude.ai/install.ps1 | iex
 ```
+
+### Status line doesn't appear
+It only redraws on the next interaction, so send a message before judging. If it's still missing, run `.\Verify-Install.ps1` - it renders the status line with a sample payload and prints the result. Confirm the script is there and Node can run it:
+
+```powershell
+Test-Path "$env:USERPROFILE\.claude\statusline.mjs"   # should print True
+node "$env:USERPROFILE\.claude\statusline.mjs" --help  # should exit without an error
+```
+
+Note the `command` in `settings.json` uses **forward slashes** (`node "C:/Users/you/.claude/statusline.mjs"`). This is deliberate: on Windows, Claude Code runs the status line through Git Bash, which swallows backslashes as escape characters and fails silently.
 
 ### Corporate proxy / firewall issues
 Ask IT to allowlist: `claude.ai`, `cdn.anthropic.com`, `winget.azureedge.net`

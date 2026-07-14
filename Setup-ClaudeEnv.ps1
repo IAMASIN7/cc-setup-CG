@@ -127,13 +127,45 @@ function Install-WithWinget {
     }
 }
 
+# Place statusline.mjs in ~/.claude. When run from a checkout or the ZIP the
+# file sits next to this script; when run via 'irm | iex' it doesn't exist
+# locally, so fall back to fetching it from the repo.
+# An existing file is left alone so re-running the installer never wipes out
+# a status line the user has customized.
+function Install-StatusLine {
+    param([string]$ClaudeDir)
+
+    $dest = Join-Path $ClaudeDir "statusline.mjs"
+    if (Test-Path $dest) {
+        Write-Skip "statusline.mjs already present (keeping your customizations)"
+        return $true
+    }
+
+    $local = if ($PSScriptRoot) { Join-Path $PSScriptRoot "statusline.mjs" } else { $null }
+    if ($local -and (Test-Path $local)) {
+        Copy-Item -Path $local -Destination $dest -Force
+        Write-Ok "statusline.mjs installed to $dest"
+        return $true
+    }
+
+    $rawUrl = "https://raw.githubusercontent.com/IAMASIN7/cc-setup-CG/main/statusline.mjs"
+    try {
+        Invoke-WebRequest -Uri $rawUrl -OutFile $dest -UseBasicParsing -ErrorAction Stop
+        Write-Ok "statusline.mjs downloaded to $dest"
+        return $true
+    } catch {
+        Write-Warn "Could not fetch statusline.mjs - skipping status line setup"
+        return $false
+    }
+}
+
 # ==============================================================
 #  Main
 # ==============================================================
 
 Write-Banner
 
-$totalSteps = 13
+$totalSteps = 15
 
 # ------------------------------------------------------------------
 #  Step 1 - Pre-flight checks (admin, internet, winget)
@@ -263,9 +295,15 @@ Write-Step "7" $totalSteps "Checking uv (Python package manager)..."
 Install-WithWinget -DisplayName "uv" -TestCommand "uv" -WingetId "astral-sh.uv" | Out-Null
 
 # ------------------------------------------------------------------
-#  Step 8 - Install Windows Terminal
+#  Step 8 - Install jq (command-line JSON processor)
 # ------------------------------------------------------------------
-Write-Step "8" $totalSteps "Checking Windows Terminal..."
+Write-Step "8" $totalSteps "Checking jq (JSON processor)..."
+Install-WithWinget -DisplayName "jq" -TestCommand "jq" -WingetId "jqlang.jq" | Out-Null
+
+# ------------------------------------------------------------------
+#  Step 9 - Install Windows Terminal
+# ------------------------------------------------------------------
+Write-Step "9" $totalSteps "Checking Windows Terminal..."
 # Check for Store-installed version first (MSIX won't show up in winget list)
 $wtStoreApp = Get-AppxPackage -Name "Microsoft.WindowsTerminal" -ErrorAction SilentlyContinue
 if ($wtStoreApp) {
@@ -275,15 +313,15 @@ if ($wtStoreApp) {
 }
 
 # ------------------------------------------------------------------
-#  Step 9 - Install VS Code
+#  Step 10 - Install VS Code
 # ------------------------------------------------------------------
-Write-Step "9" $totalSteps "Checking Visual Studio Code..."
+Write-Step "10" $totalSteps "Checking Visual Studio Code..."
 Install-WithWinget -DisplayName "VS Code" -TestCommand "code" -WingetId "Microsoft.VisualStudioCode" | Out-Null
 
 # ------------------------------------------------------------------
-#  Step 10 - Ensure ~/.local/bin is on PATH (before installing Claude)
+#  Step 11 - Ensure ~/.local/bin is on PATH (before installing Claude)
 # ------------------------------------------------------------------
-Write-Step "10" $totalSteps "Preparing PATH for Claude CLI..."
+Write-Step "11" $totalSteps "Preparing PATH for Claude CLI..."
 
 $claudeBin = "$env:USERPROFILE\.local\bin"
 $currentUserPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
@@ -299,9 +337,9 @@ if ($env:PATH -notlike "*$claudeBin*") {
 }
 
 # ------------------------------------------------------------------
-#  Step 11 - Install Claude Code CLI (official standalone installer)
+#  Step 12 - Install Claude Code CLI (official standalone installer)
 # ------------------------------------------------------------------
-Write-Step "11" $totalSteps "Installing Claude Code CLI (official installer)..."
+Write-Step "12" $totalSteps "Installing Claude Code CLI (official installer)..."
 
 Refresh-Path
 
@@ -335,9 +373,9 @@ if (Test-CommandExists "claude") {
 }
 
 # ------------------------------------------------------------------
-#  Step 12 - Environment variables + .claude.json config
+#  Step 13 - Environment variables + .claude.json config
 # ------------------------------------------------------------------
-Write-Step "12" $totalSteps "Setting environment variables + config file..."
+Write-Step "13" $totalSteps "Setting environment variables + config file..."
 
 # Environment variable
 [System.Environment]::SetEnvironmentVariable("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "1", "User")
@@ -398,9 +436,43 @@ $settings | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsPath -Encoding
 Write-Ok "$settingsPath written (defaultMode=auto, effortLevel=xhigh)"
 
 # ------------------------------------------------------------------
-#  Step 13 - 'cc' / 'ccb' shortcuts (work in EVERY shell)
+#  Step 14 - Custom status line
 # ------------------------------------------------------------------
-Write-Step "13" $totalSteps "Setting up 'cc' and 'ccb' shortcuts..."
+# Adds a status bar at the bottom of Claude Code showing the model, reasoning
+# effort, current folder, git branch (with a dirty marker and ahead/behind
+# counts), a color-coded context-window bar, lines changed, and 5-hour / 7-day
+# usage limits. The bar is a Node script, so it needs no extra dependencies and
+# works whether Claude Code routes the command through Git Bash or PowerShell.
+Write-Step "14" $totalSteps "Configuring the Claude Code status line..."
+
+if (Install-StatusLine -ClaudeDir $settingsDir) {
+    # Re-read: the file was just written above, and we only add our key.
+    $settings = $null
+    if (Test-Path $settingsPath) {
+        try { $settings = Get-Content $settingsPath -Raw -ErrorAction Stop | ConvertFrom-Json } catch { $settings = $null }
+    }
+    if (-not $settings) { $settings = [PSCustomObject]@{} }
+
+    # Claude Code runs this command through Git Bash when Git Bash is present,
+    # and Git Bash eats unquoted backslashes - so the path must use forward
+    # slashes and stay quoted (usernames can contain spaces).
+    $statusLineScript = (Join-Path $settingsDir "statusline.mjs") -replace '\\', '/'
+    $statusLine = [PSCustomObject]@{
+        type    = "command"
+        command = "node `"$statusLineScript`""
+        padding = 0
+    }
+    $settings | Add-Member -NotePropertyName statusLine -NotePropertyValue $statusLine -Force
+
+    $settings | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsPath -Encoding UTF8
+    Write-Ok "Status line enabled (model, context %, git branch, 5h/7d limits)"
+    Write-Info "Customize it by editing the CONFIG block in $settingsDir\statusline.mjs"
+}
+
+# ------------------------------------------------------------------
+#  Step 15 - 'cc' / 'ccb' shortcuts (work in EVERY shell)
+# ------------------------------------------------------------------
+Write-Step "15" $totalSteps "Setting up 'cc' and 'ccb' shortcuts..."
 
 # --- Primary mechanism: .cmd shims on PATH -------------------------
 # A function in the PowerShell profile only works in PowerShell, only
@@ -501,6 +573,7 @@ $checks = @(
     @{ Name = "Python";       Cmd = "python" },
     @{ Name = "GitHub CLI";   Cmd = "gh" },
     @{ Name = "uv";           Cmd = "uv" },
+    @{ Name = "jq";           Cmd = "jq" },
     @{ Name = "VS Code";      Cmd = "code" },
     @{ Name = "Claude CLI";   Cmd = "claude" }
 )

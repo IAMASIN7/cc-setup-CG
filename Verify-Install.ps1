@@ -20,6 +20,7 @@ $tools = @(
     @{ Name = "Python";       Cmd = "python";  Flag = "--version" },
     @{ Name = "GitHub CLI";   Cmd = "gh";      Flag = "--version" },
     @{ Name = "uv";           Cmd = "uv";      Flag = "--version" },
+    @{ Name = "jq";           Cmd = "jq";      Flag = "--version" },
     @{ Name = "VS Code";      Cmd = "code";    Flag = "--version" },
     @{ Name = "Claude CLI";   Cmd = "claude";  Flag = "--version" }
 )
@@ -81,6 +82,38 @@ if (Test-Path $settingsPath) {
 } else {
     Write-Host "  [FAIL]  ~/.claude/settings.json not found" -ForegroundColor Red
     $allPassed = $false
+}
+
+# Check the status line: the script exists, settings point at it, and it
+# actually renders. A broken status line never blocks Claude Code, so a
+# failure here is a warning rather than a hard fail.
+$statusLineScript = "$env:USERPROFILE\.claude\statusline.mjs"
+if (Test-Path $statusLineScript) {
+    $wired = $false
+    try {
+        $s = Get-Content $settingsPath -Raw | ConvertFrom-Json
+        if ($s.statusLine.command) { $wired = $true }
+    } catch {}
+
+    if (-not $wired) {
+        Write-Host "  [WARN]  statusline.mjs exists but settings.json doesn't use it" -ForegroundColor Yellow
+    } elseif (Get-Command node -ErrorAction SilentlyContinue) {
+        # Feed it a sample payload and confirm it prints something.
+        $sample = '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"' +
+                  ($env:USERPROFILE -replace '\\', '/') +
+                  '"},"context_window":{"used_percentage":10,"context_window_size":200000},"cost":{}}'
+        $rendered = $sample | & node $statusLineScript 2>$null
+        if ($rendered) {
+            Write-Host "  [PASS]  Status line renders:" -ForegroundColor Green
+            Write-Host "            $rendered"
+        } else {
+            Write-Host "  [WARN]  Status line script produced no output" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  [WARN]  Status line installed but Node.js is not on PATH yet" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  [WARN]  Status line not installed (~/.claude/statusline.mjs)" -ForegroundColor Yellow
 }
 
 Write-Host ""

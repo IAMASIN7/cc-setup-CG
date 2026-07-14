@@ -18,7 +18,7 @@ $tempDir = Join-Path $env:TEMP "claude-setup-$(Get-Random)"
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
 try {
-    $files = @("Setup-ClaudeEnv.ps1", "Verify-Install.ps1")
+    $files = @("Setup-ClaudeEnv.ps1", "Verify-Install.ps1", "statusline.mjs")
 
     foreach ($file in $files) {
         Write-Host "  Downloading $file..." -ForegroundColor DarkGray
